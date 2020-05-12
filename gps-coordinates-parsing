@@ -1,0 +1,54 @@
+setwd("/Users/yuliabezginova/Library/Mobile Documents/com~apple~CloudDocs/Documents/phd/university-reputation/data")
+
+library(openxlsx)
+library(rvest)
+library(writexl)
+
+links = read.xlsx("reg_links.xlsx")
+
+# создаем вектора
+
+long.arr = c()
+lat.arr = c()
+region.arr = c()
+
+# проходимся по списку ссылок
+for( i in  seq(1, length(links$links), by=1)) {
+  print(links$region[i])
+  
+# условие нужно потому что есть NA и цикл падает
+if (!is.na(links$links[i])) {
+    
+    #читаем ссылку, получаем html код 
+    html = read_html(links$links[i])
+    
+    # получаем узел html страницы, там хранится наша долгота и широта
+    # посмотри внимательно на тип переменной это List. В List может храниться все что угодно
+    coord = html_nodes(html,'input[id="DMS"]')
+    
+    # получили из листа по ключу значение, это тип переменной character
+    value = xml_attrs(coord[[1]])[["value"]]
+    # разбили на долготу и широту
+    res = strsplit(value,'N')
+    # добавили обратно N
+    longitude1 = paste(res[[1]][1],'N',sep = '')
+    # получили широту
+    latitude1 = res[[1]][2]
+    
+    #положили в вектор долготу
+    long.arr = append(long.arr,longitude1)
+    # положили в вектор широту
+    lat.arr = append(lat.arr,latitude1)
+    # положили в вектор регион
+    region.arr = append(region.arr,links$region[i])
+  }
+  else {
+    print("Not found")
+    print(links$region[i])
+    print('-------------')
+  }
+  
+}
+# создаем датафрейм из векторов
+complete.df = data.frame(region = region.arr,longitude = long.arr, latitude = lat.arr)
+write_xlsx(complete.df, "gps_ru_regions.xlsx")
