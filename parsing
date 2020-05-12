@@ -1,0 +1,116 @@
+library(rvest)
+library(tidyverse)
+library(readxl)
+library(writexl)
+
+links <- read_excel("C:/Users/Sofia/Desktop/indicator-links.xlsx")
+colnames(links)
+
+links = links[-1,1:7]
+colnames(links)[1] = "university" 
+colnames(links)[2:ncol(links)] = 2012:2017
+
+links = gather(links, year, link, -university)
+
+
+### for 2012 and 2013
+
+links_12_13 = filter(links, year == 2012 | year == 2013)
+
+d_2012_2013 = data.frame()
+
+for (i in c(1:nrow(links_12_13))){
+  
+  print(i/nrow(links_12_13)*100)
+  
+  university = links_12_13$university[i]
+  year = links_12_13$year[i]
+  url = links_12_13$link[i]
+  
+  html = read_html(url)
+  
+  t = html %>% 
+    html_table()
+  
+  t = t[[3]]
+  t = t[-1,c(2,3)]
+  colnames(t) = c("indicator","value")
+  
+  t$university = university
+  t$year = year
+  
+  d_2012_2013 = rbind(d_2012_2013, t)
+}
+
+### for 2014
+
+links_14 = filter(links, year == 2014)
+
+d_2014 = data.frame()
+
+for (i in c(1:nrow(links_14))){
+  
+  print(i/nrow(links_14)*100)
+  
+  university = links_14$university[i]
+  year = links_14$year[i]
+  url = links_14$link[i]
+  
+  html = read_html(url)
+  
+  t = html %>% 
+    html_table(fill = T)
+  
+  t = t[[2]]
+  t = t[-1,c(2,3)]
+  colnames(t) = c("indicator","value")
+  
+  t$value <- sub("\\*", "", t$value)
+  
+  t$university = university
+  t$year = year
+  
+  d_2014 = rbind(d_2014, t)
+}
+
+d_2014 = select(d_2014, university, year, indicator, value)
+
+### for later years
+
+links_15_17 = filter(links, year > 2014)
+
+d_2015_2017 = data.frame()
+
+for (i in c(1:nrow(links_15_17))){
+  
+  print(i/nrow(links_15_17)*100)
+  
+  university = links_15_17$university[i]
+  year = links_15_17$year[i]
+  url = links_15_17$link[i]
+  
+  html = read_html(url)
+  
+  t = html %>% 
+    html_table(fill = T)
+  
+  t = t[[4]]
+  t = t[-1,c(2,3)]
+  colnames(t) = c("indicator","value")
+  
+  t$value <- sub("\\*", "", t$value)
+  
+  t$university = university
+  t$year = year
+  
+  d_2015_2017 = rbind(d_2015_2017, t)
+}
+
+d_2015_2017 = select(d_2015_2017, university, year, indicator, value)
+
+
+##### combining datasets together
+d_full = rbind(d_2012_2013, d_2014, d_2015_2017)
+d_full = spread(d_full, indicator, value)
+
+write_xlsx(d_full, "universities_info.xlsx")
