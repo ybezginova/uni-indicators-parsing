@@ -1,0 +1,60 @@
+library(dplyr)
+library(ggplot2)
+library(readxl)
+library(stargazer)
+
+setwd("/Users/yuliabezginova/Library/Mobile Documents/com~apple~CloudDocs/Documents/phd/university-reputation/data")
+
+sent_fund <- read_excel("sent_funding.xlsx")
+indicator <- read_excel("universities_indicators_v2.xlsx")
+
+sent_fund <- sent_fund %>% 
+  rename("university" = "name")
+
+indicator <- indicator %>% 
+  rename("other" = "Дополнительный показатель", "salary" = "Заработная плата ППС",
+         "infrastructure" = "Инфраструктура", "international" = "Международная деятельность",
+         "research_work" = "Научно-исследовательская деятельность", "education" = "Образовательная деятельность",
+         "recruitment" = "Трудоустройство", "business" = "Финансово-экономическая деятельность")
+
+indicator$recruitment <- as.numeric(indicator$recruitment)
+summary(indicator$recruitment)
+str(indicator)
+
+### join ###
+sent_indicator <- left_join(sent_fund, indicator)
+
+library(xlsx)
+writexl::write_xlsx(sent_indicator, "sent_indicator.xlsx")
+
+library(readstata13)
+save.dta13(sent_indicator, file ="sent_indicator.dta")
+
+### correlation matrix
+sent <- sent_indicator %>% 
+  mutate_all(~replace(., is.na(.), 0))
+
+cor_sent <- cor(sent[c("sent", "other", "funding5100", "salary", "infrastructure", "international", "research_work", "education", "recruitment", "business")], use = "complete", method = "spearman")
+stargazer(cor_sent, type = "html")
+
+### corr.test
+df_cor <- sent %>%
+  select(funding5100, sent, other, salary, infrastructure, international, research_work, education, recruitment, business)
+
+library(psych)
+ct <- corr.test(df_cor)  #find the correlations and give the probabilities
+print(ct, short = TRUE)
+stargazer(ct[1], type = "html") # corr matrix
+stargazer(ct[3], type = "html") # probabilitiy's matrix
+
+library(ggcorrplot)
+ggcorrplot(cor_sent, title = "Correlation matrix", lab=TRUE, sig.level = .05)
+
+library(ellipse)
+# Make the graph, with reduced margins
+plotcorr(cor_sent, mar = c(0.1, 0.1, 0.1, 0.1))
+
+# Do the same, but with colors corresponding to value
+colorfun <- colorRamp(c("#CC0000","white","#3366CC"), space="Lab")
+plotcorr(cor_sent, col=rgb(colorfun((cor_sent+1)/2), maxColorValue=255),
+         mar = c(0.1, 0.1, 0.1, 0.1))
